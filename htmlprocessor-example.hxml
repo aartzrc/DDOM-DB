@@ -1,7 +1,0 @@
--lib LambdaExt
--lib HtmlParser
--cp src
--D analyzer-optimize
--debug
--main tests.HtmlProcessorTests
---interp

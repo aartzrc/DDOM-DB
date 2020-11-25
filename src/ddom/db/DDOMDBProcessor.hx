@@ -41,69 +41,67 @@ class DDOMDBProcessor extends Processor implements IProcessor {
         if(c != null) c.close();
     }
 
-    public function processEventBatch(batch:EventBatch, clearCache:Bool = true) {
+    public function processEventBatch(eventBatch:EventBatch, clearCache:Bool = true) {
+        processEvents(eventBatch.events.map((e) -> e.event), clearCache);
+    }
+
+    public function processEvents(events:Array<Event>, clearCache:Bool = true) {
         //trace(batch);
         c.startTransaction();
         try {
-            function handleEvents(events:Array<Event>) {
-                for(e in events) {
-                    switch(e) {
-                        case Batch(newEvents):
-                            handleEvents(newEvents);
-                        case Created(node):
-                            var sql = "INSERT INTO datanode (type) VALUES (" + c.quote(node.type) + ")";
-                            log.push(sql);
-                            c.request(sql);
-                            node.setField("id", Std.string(c.lastInsertId()));
-                            log.push(node.getField("id"));
-                        case FieldSet(node, name, val):
-                            if(name != "id") {
-                                if(val == null) {
-                                    var sql = "DELETE FROM fields WHERE datanode_id=" + node.getField("id") + " AND name=" + c.quote(name);
-                                    log.push(sql);
-                                    c.request(sql);
-                                } else {
-                                    var sql = "INSERT INTO fields (datanode_id,name,val) VALUES (" + node.getField("id") + "," + c.quote(name) + "," + c.quote(val) + ") ON DUPLICATE KEY UPDATE val=" + c.quote(val);
-                                    log.push(sql);
-                                    c.request(sql);
-                                }
+            for(e in events) {
+                switch(e) {
+                    case Created(node):
+                        var sql = "INSERT INTO datanode (type) VALUES (" + c.quote(node.type) + ")";
+                        log.push(sql);
+                        c.request(sql);
+                        node.setField("id", Std.string(c.lastInsertId()));
+                        log.push(node.getField("id"));
+                    case FieldSet(node, name, val):
+                        if(name != "id") {
+                            if(val == null) {
+                                var sql = "DELETE FROM fields WHERE datanode_id=" + node.getField("id") + " AND name=" + c.quote(name);
+                                log.push(sql);
+                                c.request(sql);
+                            } else {
+                                var sql = "INSERT INTO fields (datanode_id,name,val) VALUES (" + node.getField("id") + "," + c.quote(name) + "," + c.quote(val) + ") ON DUPLICATE KEY UPDATE val=" + c.quote(val);
+                                log.push(sql);
+                                c.request(sql);
                             }
-                        case Removed(node):
-                            var sql = "DELETE FROM parent_child WHERE parent_id=" + node.getField("id") + " OR child_id=" + node.getField("id");
-                            log.push(sql);
-                            c.request(sql);
-                            var sql = "DELETE FROM fields WHERE datanode_id=" + node.getField("id");
-                            log.push(sql);
-                            c.request(sql);
-                            var sql = "DELETE FROM datanode WHERE id=" + node.getField("id");
-                            log.push(sql);
-                            c.request(sql);
-                        case ChildAdded(node, child):
-                            var sql = "INSERT INTO parent_child (parent_id, child_id) VALUES (" + node.getField("id") + "," + child.getField("id") + ") ON DUPLICATE KEY UPDATE child_id=child_id";
-                            log.push(sql);
-                            c.request(sql);
-                        case ParentAdded(node, parent):
-                            var sql = "INSERT INTO parent_child (child_id, parent_id) VALUES (" + node.getField("id") + "," + parent.getField("id") + ") ON DUPLICATE KEY UPDATE child_id=child_id";
-                            log.push(sql);
-                            c.request(sql);
-                        case ChildRemoved(node, child):
-                            var sql = "DELETE FROM parent_child WHERE parent_id=" + node.getField("id") + " AND child_id=" + child.getField("id");
-                            log.push(sql);
-                            c.request(sql);
-                        case ParentRemoved(node, parent):
-                            var sql = "DELETE FROM parent_child WHERE parent_id=" + parent.getField("id") + " AND child_id=" + node.getField("id");
-                            log.push(sql);
-                            c.request(sql);
-                    }
+                        }
+                    case Removed(node):
+                        var sql = "DELETE FROM parent_child WHERE parent_id=" + node.getField("id") + " OR child_id=" + node.getField("id");
+                        log.push(sql);
+                        c.request(sql);
+                        var sql = "DELETE FROM fields WHERE datanode_id=" + node.getField("id");
+                        log.push(sql);
+                        c.request(sql);
+                        var sql = "DELETE FROM datanode WHERE id=" + node.getField("id");
+                        log.push(sql);
+                        c.request(sql);
+                    case ChildAdded(node, child):
+                        var sql = "INSERT INTO parent_child (parent_id, child_id) VALUES (" + node.getField("id") + "," + child.getField("id") + ") ON DUPLICATE KEY UPDATE child_id=child_id";
+                        log.push(sql);
+                        c.request(sql);
+                    case ParentAdded(node, parent):
+                        var sql = "INSERT INTO parent_child (child_id, parent_id) VALUES (" + node.getField("id") + "," + parent.getField("id") + ") ON DUPLICATE KEY UPDATE child_id=child_id";
+                        log.push(sql);
+                        c.request(sql);
+                    case ChildRemoved(node, child):
+                        var sql = "DELETE FROM parent_child WHERE parent_id=" + node.getField("id") + " AND child_id=" + child.getField("id");
+                        log.push(sql);
+                        c.request(sql);
+                    case ParentRemoved(node, parent):
+                        var sql = "DELETE FROM parent_child WHERE parent_id=" + parent.getField("id") + " AND child_id=" + node.getField("id");
+                        log.push(sql);
+                        c.request(sql);
                 }
             }
-            handleEvents(batch.events);
         } catch (e:Dynamic) {
             c.rollback();
             throw e;
         }
         c.commit();
-        batch.events = [];
         if(clearCache) {
             cache.clear();
             selectGroupCache.clear();

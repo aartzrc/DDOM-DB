@@ -1,7 +1,0 @@
--lib LambdaExt
--cp src
--D analyzer-optimize
--debug
-#-D tokenizerdebug
--main tests.TokenizerTests
---interp

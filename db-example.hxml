@@ -1,4 +1,5 @@
 -lib LambdaExt
+-lib ddom
 -cp src
 -D analyzer-optimize
 -main examples.DBTest

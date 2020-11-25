@@ -1,6 +1,5 @@
 package examples;
 
-import ddom.db.DDOMDBProcessor;
 using ddom.SelectorListener;
 using ddom.DDOM;
 import ddom.DataNode;
